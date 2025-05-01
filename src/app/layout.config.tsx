@@ -28,7 +28,7 @@ export const baseOptions: BaseLayoutProps = {
   },
   links: [
     {
-      text: "Documents",
+      text: "문서",
       url: "/docs",
       active: "nested-url",
     },
