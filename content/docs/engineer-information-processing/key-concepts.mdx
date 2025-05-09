@@ -1,0 +1,25 @@
+---
+title: "정보처리기사 필기 핵심 개념"
+description: "정보처리기사 필기 개념 중 핵심 및 빈출 내용을 정리합니다."
+icon: BookMarked
+---
+
+## OSI 7계층
+
+<Callout title="정의">
+  **OSI(Open System Interconnection) 7계층**은
+  <strong>국제 표준화 기구(ISO)</strong>에서 개발한 **7단계로 구성된 네트워크 통신
+  과정**을 의미한다.
+</Callout>
+
+| 계층             | 정의                                                                  | 프로토콜                                   | PDU               |
+| ---------------- | --------------------------------------------------------------------- | ------------------------------------------ | ----------------- |
+| 물리 계층        | 데이터를 전기적 신호로 변환하여 전송하는 역할                         | Coax, Fiber, Hub, Wireless, Repeater       | 비트(Bit)         |
+| 데이터 링크 계층 | 네트워크 기기 간 데이터 전송 및 오류 제어를 담당                      | Ethernet, SLIP, PPP, FDDI, HDLC, LAN, Wifi | 프레임(Frame)     |
+| 네트워크 계층    | 데이터그램의 경로 설정 및 논리적 주소(IP 주소) 관리                   | IP, IPSec, ICMP, IGMP                      | 패킷(Packet)      |
+| 전송 계층        | 발신지와 목적지 간의 데이터 전송 제어 및 오류 복구                    | TCP, UDP, ECN, SCTP, DCCP                  | 세그먼트(Segment) |
+| 세션 계층        | 통신 장치 간의 세션 설정, 유지, 동기화                                | NetBIOS, SSH, TLS, Sockets                 | 데이터(Data)      |
+| 표현 계층        | 데이터 형식 변환, 암호화, 압축 등 송신자와 수신자 간 데이터 표현 관리 | JPG, MPEG, SMB, AFP                        | 데이터(Data)      |
+| 응용 계층        | 사용자와 직접 연결되며 응용 소프트웨어를 지원                         | HTTP, DNS, Telnet, FTP                     | 데이터(Data)      |
+
+<br />
