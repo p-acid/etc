@@ -1,0 +1,19 @@
+---
+title: "기출문제 풀이"
+description: "기출 문제 풀이와 오답 노트 정리"
+icon: FolderPen
+---
+
+import { getPageTreePeers } from "fumadocs-core/server";
+import { source } from "@/lib/source";
+
+<Cards>
+  {getPageTreePeers(
+    source.pageTree,
+    "/docs/engineer-information-processing/past-tests"
+  ).map((peer) => (
+    <Card key={peer.url} title={peer.name} href={peer.url}>
+      {peer.description}
+    </Card>
+  ))}
+</Cards>
