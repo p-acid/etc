@@ -1,0 +1,23 @@
+---
+title: "단어장 프로젝트"
+description: "개인 프로젝트인 '단어장 프로젝트'와 관련된 기록입니다."
+icon: Notebook
+---
+
+import { getPageTreePeers } from "fumadocs-core/server";
+import { source } from "@/lib/source";
+
+<Callout title="배포된 서비스 확인하기">
+  [해당 링크](https://hanja-random-quiz.vercel.app/)를 통해 배포된 서비스를
+  확인할 수 있습니다.
+</Callout>
+
+<Cards>
+  {getPageTreePeers(source.pageTree, "/docs/word-helper-project").map(
+    (peer) => (
+      <Card key={peer.url} title={peer.name} href={peer.url}>
+        {peer.description}
+      </Card>
+    )
+  )}
+</Cards>
