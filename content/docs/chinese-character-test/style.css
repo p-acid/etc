@@ -1,0 +1,6 @@
+tbody > tr > td:first-of-type {
+  padding: 0px 0px;
+  text-align: center;
+  font-size: 24px;
+  font-weight: 300;
+}
