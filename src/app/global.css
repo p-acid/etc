@@ -18,3 +18,11 @@ td {
 td:first-of-type {
   white-space: pre;
 }
+
+blockquote * {
+  @apply before:content-none! not-italic font-light! text-neutral-700 dark:text-neutral-400;
+}
+
+blockquote strong {
+  @apply text-neutral-950 dark:text-neutral-200 font-medium!;
+}
