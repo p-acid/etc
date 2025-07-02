@@ -1,6 +1,7 @@
 ---
-title: "NIPA-AWS 2025.07.02"
-description: "NIPA-AWS 3일차 교육 요약"
+title: "2025.07.02 교육 내용 정리"
+description: "NIPA-AWS 3일차 교육 내용인 스토리지, 데이터베이스, 모니터링 및 크기 조정 관련 내용 정리"
+lastModified: "2025.07.02"
 ---
 
 ## 어제자 복습
@@ -107,3 +108,180 @@ description: "NIPA-AWS 3일차 교육 요약"
 - 일반적으로 데이터베이스 읽기 및 쓰기를 진행하는 서버는 1대
 - 비관계형 데이터베이스는 병렬 처리 진행 → 속도가 빠름
   - 솔루션마다 데이터 저장 형식이 다름
+
+### AWS 관리형/비관리형 서비스 차이
+
+- 관리형 서비스를 통해 애플리케이션 최적화 외 여러 부분을 AWS에서 관리해준다.
+- 관리형 서비스는 커스텀 관련된 제약사항이 있을 수 있음
+  - 게임 서비스와 같은 곳은 성능 향상을 위한 튜닝을 위해 비관리형 서비스를 활용하는 경우가 있음
+
+### Amazon RDS
+
+- RDS(Relational Database Service) → 관계형 데이터베이스를 AWS 관리형 인스턴스로 배포 관리
+  - EC2 인스턴스처럼 보안 그룹을 활용할 수 있고, 데이터 암호화 가능
+  - 인스턴스(컴퓨팅 및 볼륨 스토리지) 용량 조정
+  - Multi-AZ 배포 가능 (프라이머리, 액티브, 스탠바이로 구성 가능) → 데이터베이스 고가용성 구현
+
+<Mermaid 
+  chart={`flowchart LR
+  subgraph AZ1[가용 영역 1]
+    PrimaryDB[프라이머리 DB 인스턴스]
+  end
+  subgraph AZ2[가용 영역 2]
+    StandbyDB[스탠바이 DB 인스턴스]
+    ReadReplica[읽기 전용 복제본]
+  end
+
+PrimaryDB -- 동기화 --> StandbyDB
+PrimaryDB -- 비동기 복제 --> ReadReplica
+`}
+/>
+
+### Amazon Aurora
+
+- 클라우드를 위해 구축한 MySQL 및 PostgreSQL과 호환되는 데이터베이스
+- 스토리지를 클러스터 볼륨으로 제공 → 여러 가용 영역에 걸친 가상 스토리지
+- 서버리스 v2 모델 지원
+
+### Amazon DynamoDB
+
+- 키-값 기반 비관계형 데이터베이스를 완전 관리형으로 제공
+- 읽기, 쓰기별 처리 용량 파악 → 용량 유닛 (CU, Capacity)
+- 분산 저장 → 3개의 가용 영역에 걸쳐 1초 내에 테이블 데이터를 복제
+- 파티션 키 설정이 중요 → 되도록이면 중복이 없도록 하는 것이 좋음
+- 읽기 일관성 유지를 위해 읽기 전용 가용 영역을 비교하여 일치할 경우만 전달
+
+### DynamoDB 글로벌 테이블
+
+- 리전 간 복제본이 모두 액티브 데이터베이스 역할을 담당하는 기능
+
+### 데이터베이스 캐시
+
+- 클라이언트가 데이터베이스 접근 성능을 높이기 위해 데이터베이스 계층 앞 단에 캐시를 추가 배치
+- 캐시와 데이터베이스 동기화 필요 → 레이지 로딩, 라이트 스루 전략 필요
+- 캐시 적용을 고려할 케이스
+  - 쿼리 속도가 느리고 비용이 많이 드는 데이터 존재 → 여러 테이블에 거쳐 조인을 수행하는 쿼리
+  - 비교적 정적이며 액세스 빈도가 높은 존재 → SNS 서비스 프로필
+- 라이트 스루 → 자주 액세스 하는 데이터가 아님에도 캐시 처리 가능
+
+### 데이터베이스 마이그레이션 도구
+
+- 데이터베이스 마이그레이션을 진행할 때 유의하는 부분
+  - AWS Database Migration Service → 온프레미스 데이터베이스 초기 및 지속적 데이터 복제
+    - 마이그레이션 과정에서 발생하는 다운 타임(중단되는 시간) 최소화
+  - AWS Scheme Conversion Tool → 온프레미스와 클라우드 이기종 데이터베이스 마이그레이션을 위한 사전 스키마 변환 도구
+
+---
+
+## 모니터링 및 크기 조정
+
+### AWS 클라우드 모니터링 대상 리스트
+
+- 배포한 AWS 리소스의 성능 지표
+- 로그를 남기는 AWS 리소스
+- EC2 위에 배포한 애플리케이션의 로그
+- AWS 계정 내의 API 호출과 응답
+- VPC내에 오가는 IP Packet
+
+### AWS 클라우드에서의 모니터링 알림 설정
+
+- AWS 리소스의 성능 값에 대한 임계치 설정 후 벗어날 시 수행할 작업 정의
+- 여러 리소스에서 발생되는 이벤트를 캡쳐 후 이에 따라 수행할 작업 정의
+  - 변경사항을 탐지하여 알림을 발생
+
+### Amazon Cloudwatch
+
+- EC2에 설치하여 시스템 레벨의 지표를 수집하고 임계치 지표 설정
+- 수집할 지표, 임계치 기준 등 설정
+
+<Mermaid 
+  chart="flowchart TD
+  subgraph Resource[AWS 리소스]
+    EC2[EC2 인스턴스]
+    S3[S3 버킷]
+    RDS[RDS 인스턴스]
+    Lambda[Lambda 함수]
+    기타[기타 AWS 서비스]
+  end
+
+Resource -- 지표/로그 전송 --> CloudWatch
+
+CloudWatch[Amazon CloudWatch]
+CloudWatch -->|지표/로그 저장 및 분석| MetricsDB[지표/로그 저장소]
+CloudWatch -->|알람 조건 감시| Alarm[CloudWatch Alarm]
+Alarm -->|임계치 초과 시| Notification[Email, SMS, Lambda 등]
+CloudWatch -->|대시보드 시각화| Dashboard[CloudWatch Dashboard]"
+/>
+
+## Amazon EventBridge
+
+- 여러 리소스의 이벤트를 구칙으로 선언하고, 발생시 이에 따른 작업을 대상에게 라우팅
+
+<Mermaid 
+  chart="flowchart TD
+  subgraph Resource[AWS 리소스]
+    EC2[EC2 인스턴스]
+    S3[S3 버킷]
+    RDS[RDS 인스턴스]
+    Lambda[Lambda 함수]
+    기타[기타 AWS 서비스]
+  end
+
+Resource -- 지표/로그 전송 --> EventBridge
+
+EventBridge[Amazon EventBridge]
+EventBridge -- 이벤트 규칙 매칭 --> Rule[Event Rule]
+Rule -- 타겟에 이벤트 전달 --> Targets[타겟 → Lambda, SQS, SNS, Step Functions 등]"
+/>
+
+### AWS CloudTrail
+
+- 계정 내 대부분의 AWS 서비스에 대한 API 호출 및 응답을 S3에 로깅
+  - 특정 EC2를 종료한 사용자, 권한 부족으로 거부된 활동, 보안 그룹 구성 변경한 사용자 등등
+
+### VPC 흐름 로그
+
+- VPC ENI에 송수신되는 IP 트래픽 정보 수집
+
+### Elastic Load Balancing
+
+- 여러 컴퓨팅 리소스 대상으로 자동으로 트래픽 분산 및 상태 확인 수행
+- 가용 영역 수준에서의 고가용성 및 보안 기능 제공
+
+<Mermaid 
+  chart="flowchart TD
+  ELB[Elastic Load Balancer]
+
+subgraph Listener[리스너]
+Rule1[규칙]
+Rule2[규칙]
+end
+
+subgraph TargetGroup[대상 그룹]
+Group1[그룹]
+Group2[그룹]
+end
+
+ELB --> Listener --> TargetGroup
+
+"
+/>
+
+### ELB 로드 밸런서 종류 및 기능 비교
+
+- Application Load Balancer → HTTP/HTTPS 기반으로 컴퓨팅 로드 밸런싱 및 상태 확인
+- Network Load Balancer → TCP/UDP 기반으로 컴퓨팅 로드 밸런싱 및 상태 확인
+- Gateway Load Balancer → IP/TCP 기반으로 보안 솔루션 EC2의 로드 밸런싱 및 패킷 라우팅
+
+### Application Auto Scaling을 지원하는 서비스의 예제
+
+- EC2 인스턴스의 수량
+- DynamoDB 테이블의 읽기/쓰기 용량 유닛
+- Aurora Reader Node
+- Amazon ECS task 수량
+- Lambda 함수 프로비저닝된 동시성
+
+### Amazon EC2 Auto Scaling
+
+- EC2 인스턴스의 인스턴스 수량 조절을 자동화
+  - 여러 가용 영역을 포함한 그룹 생성 가능
