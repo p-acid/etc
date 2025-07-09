@@ -41,7 +41,28 @@ lastModified: 2025-07-0817:12:37+09:00
 3. **이벤트 루프 작동** → 이벤트 루프는 콜 스택이 비어있는지 확인한 후, 비어있다면 콜백 큐에서 대기 중인 콜백 함수를 콜 스택으로 옮겨 실행
 4. **마이크로태스크 우선 처리** → 마이크로태스크를 우선적으로 처리하고, 태스크 큐를 처리
 
-## 코드 예제
+## 예제 코드를
+
+```js
+console.log("Start");
+
+setTimeout(() => {
+  console.log("Timeout");
+}, 0);
+
+Promise.resolve().then(() => {
+  console.log("Promise");
+});
+
+console.log("End");
+```
+
+1. 동기 작업 실행
+   - `console.log("Start")` 실행 → `Start` 출력
+   - `console.log("End")` 실행 → `End` 출력
+2. 이벤트 루프 작동
+   - 마이크로태스크 큐 확인 → `console.log("C")` 실행 → `C` 출력
+   - 매크로태스크 큐 확인 → `console.log("B")` 실행 → `B` 출력
 
 ```js
 async function A() {
