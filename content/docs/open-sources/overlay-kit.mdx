@@ -1,0 +1,40 @@
+---
+title: "overlay-kit"
+description: "Toss에서 제공하는 React에서 모달, 팝업, 다이얼로그 같은 오버레이를 선언적으로 관리하기 위한 라이브러리"
+icon: Atom
+lastModified: 2025-08-0114:17:39+09:00
+---
+
+## Quick Start
+
+```sh
+# 패키지 설치
+npm install overlay-kit
+```
+
+```tsx
+import React from 'react';
+import { OverlayProvider, overlay } from 'overlay-kit';
+import { Modal } from '@src/components';
+
+function App() {
+  const notify = () =>
+    overlay.open(({ isOpen, close, unmount }) => (
+      <Modal isOpen={isOpen} onClose={close} onExit={unmount}>
+        {/* 모달 내용 */}
+      </Modal>
+    ));
+
+  return <button onClick={notify}>open modal</button>;
+}
+
+export function Root() {
+  return (
+    {/* 루트에 OverlayProvider 배치 */}
+    <OverlayProvider>
+      <App />
+      {/* 모든 오버레이는 이곳에 렌더링됩니다. */}
+    </OverlayProvider>
+  );
+}
+```

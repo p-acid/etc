@@ -1,0 +1,25 @@
+---
+title: "SEED Design"
+description: "SEED 디자인 시스템 해체 분석"
+icon: Carrot
+lastModified: 2025-07-2400:36:00+09:00
+---
+
+## 레퍼런스
+
+- [Docs](https://seed-design.io/docs)
+- [GitHub Repository](https://github.com/daangn/seed-design)
+
+## 프로젝트 구조
+
+### 타입 정의 파일과 값 파일을 분리
+
+```js title="bg.mjs"
+// https://github.com/daangn/seed-design/blob/dev/packages/css/vars/color/bg.mjs
+export const disabled = "var(--seed-color-bg-disabled)";
+```
+
+```ts title="bg.d.ts"
+// https://github.com/daangn/seed-design/blob/dev/packages/css/vars/color/bg.d.ts
+export declare const disabled = "var(--seed-color-bg-disabled)";
+```
