@@ -1,0 +1,30 @@
+---
+title: "2025 8월"
+icon: "PenLine"
+lastModified: 2025-08-0115:42:46+09:00
+---
+
+## [번역] 초보 프론트엔드 개발자들을 위한 Pub-Sub(Publish-Subscribe) 패턴을 알아보기
+
+> - **영문 원문** [Hubert Zub : Why every beginner front-end developer should know publish-subscribe pattern?](https://itnext.io/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-72a12cd68d44)
+> - **번역본** [리내로그 : [번역] 초보 프론트엔드 개발자들을 위한 Pub-Sub(Publish-Subscribe) 패턴을 알아보기](https://rinae.dev/posts/why-every-beginner-front-end-developer-should-know-publish-subscribe-pattern-kr/)
+
+- 웹 애플리케이션의 **비선형성**과 **비동기 및 [경합 상태](https://ko.wikipedia.org/wiki/%EA%B2%BD%EC%9F%81_%EC%83%81%ED%83%9C)** 해결을 위한 노력
+  - 웹 앱의 액션은 대개 갑자기 발생하며, 비동기와 경합 상태라는 이슈를 고려한 코드를 작성하게 된다.
+- 비동기 처리를 위한 기술들은 아주 간단한 <strong>'공통 원칙'</strong>에 근거한다.
+  - 아주 심층적인 부분은 새롭게 발명된 것이 아니며, 그저 잘 알려진 기초 위에 만들어졌다.
+- 지도 앱으로 알아보는 발행-구독 패턴
+  - 지도 앱에서 특정 좌표를 클릭하면 해당 좌표에 마커가 생기고, 사이드바 영역에 가장 가까운 도시명을 렌더링하는 앱이 있다고 가정한다.
+  - 이때, 각 파일은 `map.js`, `sidebar.js`, `dataService.js`(장소 데이터 관련)로 구성된다.
+  - 모든 코드를 작성하고 의도대로 작동하길 바랬지만, 장소를 조회하는 로직이 비동기이기에 원하는 대로 동작하지 않는다.
+  - 이를 해결하기 위해 언제 반응할 지 알고 있는 코드(`dataService.js`)에 [함수를 인자로 받아](/docs/faq#일급-객체first-class-citizen란) 반응해야 할 시점에 해당 함수를 실행하도록 처리할 수 있다.
+  - `subscribe` 를 통해 콜백 함수를 등록하고, `publish` 를 통해 구독된 함수들을 실행하여 데이터를 전달할 수 있다.
+- 발행-구독 패턴을 이미 알고 있던 느낌이 드는 것은 이상한 것이 아니다.
+  - `element.addEventListener(action, callback)` → 특정 이벤트에 함수를 구독하고, DOM 요소에 의해 액션이 발생하면 함수 실행
+- 발행-구독 패턴이 중요한 이유
+  - 앞에서도 말했지만, 대부분의 도구들은 새로운 발명이 아닌 '잘 알려진 기초'에 의해 만들어진다.
+  - 그렇기에 많은 요소의 기본 개념이 되는 이러한 개념들을 익히는 것은 중요하다.
+- 해당 글에서 다루지 못한 몇 가지 주제들
+  - 구독 해지(unsubscribe) 방법
+  - 다양한 주제에 대한 구독
+  - 확장된 아이디어 → 이벤트 버스
