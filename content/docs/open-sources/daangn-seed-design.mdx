@@ -12,6 +12,28 @@ lastModified: 2025-07-2400:36:00+09:00
 
 ## 프로젝트 구조
 
+### 의존성 (2025.10.04 기준)
+
+- 코드 품질 / 린트 / 분석
+  - `@biomejs/biome`: 코드 포매터 + 린터
+  - `knip`: 사용되지 않는 파일/코드 검사
+  - `publint`: 퍼블리싱 전 코드/패키지 검증
+  - `semver` / `@types/semver`: 버전 관리 및 타입 지원
+- 빌드 / 번들 / 패키징
+  - `bunchee`: 라이브러리 번들링 (CJS/ESM)
+  - `ultra-runner`: 스크립트 실행/워크플로우 관리
+  - `wrangler`: Cloudflare Worker 빌드/배포
+- 테스트
+  - `@testing-library/dom`, `@testing-library/react`, `@testing-library/user-event`: React/DOM 테스트
+  - `@testing-library/jest-dom`: Jest matcher 확장
+  - `jsdom`: Node 환경에서 DOM 시뮬레이션
+  - `vitest`: 테스트 러너
+- 릴리즈 / 버전 관리 (Changesets)
+  - `@changesets/cli`, `@changesets/config`, `@changesets/types`
+  - `@changesets/assemble-release-plan`, `@changesets/get-dependents-graph`, `@changesets/get-github-info`, `@changesets/read`
+- 개발 편의 / 워크플로우
+  - `watchlist`: 파일 변경 감시 및 워크플로우 트리거
+
 ### 타입 정의 파일과 값 파일을 분리
 
 ```js title="bg.mjs"
