@@ -1,0 +1,58 @@
+---
+title: "Onsaero(온새로) 디버깅 기록"
+icon: Notebook
+lastModified: 2025-10-14 20:45:02+09:00
+---
+
+## React
+
+### `react-router` 비동기 `loader` 활용 시 Hydration 오류
+
+```sh
+# 에러 메시지
+No `HydrateFallback` element provided to render during initial hydration
+```
+
+- `react-router` 의 `loader` 가 비동기로 데이터를 가져올 때, **초기 Hydration 중 보여줄 fallback UI가 없어서 발생**
+- Hydrate Fallback UI 추가 필요
+
+```tsx
+const router = createBrowserRouter([
+  {
+    loader: publicRouteLoader, // 비동기 loader
+    HydrateFallback: LoadingFallback, // Hydrate Fallback UI
+    children: [
+      {
+        path: "/",
+        element: <Landing />,
+      },
+      {
+        path: "/login",
+        element: <Login />,
+      },
+    ],
+  },
+
+  ...
+]);
+```
+
+## Extension
+
+### 새 탭 새로고침 '파일에 액세스 할 수 없다'
+
+<Callout type="warn">
+  해당 디버깅 기록은 `react-router` 와 같은 라우팅 라이브러리를 활용할 경우에
+  해당합니다.
+</Callout>
+
+- 새 탭 교체와 같은 형태로 서비스를 구현하는 경우 브라우저 URL을 활용할 수 없기에 메모리 라우팅 설정이 필요
+- 만약 본인이 `createBrowserRouter` 를 통해 라우터를 생성하는 경우 위 오류가 발생할 수 있음
+- `react-router` 의 경우 `createMemoryRouter` 로 교체
+
+## Claude Code
+
+### Web Searching 작업은 많은 토큰을 소모한다
+
+- `specify` 혹은 `plan` 단계에서 Web Searching 과정을 진행할 수 있는데 해당 작업은 토큰 소모량이 크다.
+- Claude Code의 경우, 본인이 Pro Plan을 활용한다면 빠른 시간 안에 제한을 초과할 수 있기에 이를 염두에 두고 보다 더 디테일한 요청을 진행하는 것이 바람직하다.
