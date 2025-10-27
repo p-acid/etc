@@ -61,8 +61,8 @@ console.log("End");
    - `console.log("Start")` 실행 → `Start` 출력
    - `console.log("End")` 실행 → `End` 출력
 2. 이벤트 루프 작동
-   - 마이크로태스크 큐 확인 → `console.log("C")` 실행 → `C` 출력
-   - 매크로태스크 큐 확인 → `console.log("B")` 실행 → `B` 출력
+   - 마이크로태스크 큐 확인 → `console.log("Promise")` 실행 → `Promise` 출력
+   - 매크로태스크 큐 확인 → `console.log("Timeout")` 실행 → `Timeout` 출력
 
 ```js
 async function A() {
