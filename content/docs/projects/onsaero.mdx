@@ -1,10 +1,17 @@
 ---
-title: "Onsaero(온새로) 디버깅 기록"
+title: "Onsaero(온새로) 기록"
 icon: Notebook
 lastModified: 2025-10-14 20:45:02+09:00
 ---
 
-## React
+## 모노레포 마이그레이션
+
+### Store 분리 작업
+
+- 공통 로직은 `@onsaero/core` 에 스토어 단위로 관리
+- 각 앱에서 `combine` 을 통해
+
+## 디버깅
 
 ### `react-router` 비동기 `loader` 활용 시 Hydration 오류
 
@@ -36,8 +43,6 @@ const router = createBrowserRouter([
   ...
 ]);
 ```
-
-## Extension
 
 ### 새 탭 새로고침 '파일에 액세스 할 수 없다'
 
