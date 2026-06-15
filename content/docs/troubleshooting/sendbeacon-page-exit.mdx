@@ -1,0 +1,172 @@
+---
+title: "페이지 이탈 시점 HTTP 요청 전송"
+description: "이탈 시점에 요청을 1회만 보내기 위해 sendBeacon을 택한 이유, beforeunload를 버린 이유, 네트워크 탭에서 안 보이는 이유와 디버깅 방법 정리"
+icon: LogOut
+lastModified: 2026-06-15 11:16:05+09:00
+---
+
+멤버십 유료 게시글 "조회 트래킹"을 구현하며 정리한 기록이다. **"페이지에 진입한 시점(viewStartedAt)"과 "이탈한 시점(usageConfirmedAt)"을 한 번에 묶어 이탈 순간에 1회만 서버로 보내야** 했다. 이 과정에서 내린 기술 판단(왜 `sendBeacon`인가, 왜 `beforeunload`가 아닌가)과, "요청은 나가는데 네트워크 탭 Fetch 필터엔 안 잡힌다"는 함정, 그리고 환경별 디버깅 방법을 남긴다.
+
+---
+
+## 1. 요구사항: "이탈하는 순간"에 요청을 보내야 한다
+
+조회 트래킹의 핵심 제약은 다음과 같다.
+
+- 진입 시점(`viewStartedAt`)을 기억해두고, **이탈 시점**(`usageConfirmedAt`)에 두 값을 **함께** 보낸다.
+- 전송은 페이지 생애 동안 **단 한 번만** 일어나야 한다 (중복 전송 금지).
+- 탭 닫기·브라우저 강제 종료·뒤로가기·앱 전환 등 **모든 이탈 경로**를 커버해야 한다.
+
+문제는 "페이지가 사라지는 순간"이 HTTP 요청을 보내기에 가장 불리한 타이밍이라는 점이다. 문서가 언로드되는 중에는 브라우저가 진행 중인 비동기 요청을 가차없이 취소한다. 일반 `fetch`/`XHR`로 보내면 **요청이 채 나가기도 전에 페이지가 죽어 전송이 유실**된다.
+
+---
+
+## 2. 왜 `sendBeacon`인가
+
+`navigator.sendBeacon()`은 정확히 이 상황(언로드 시점의 fire-and-forget 전송)을 위해 설계된 W3C Beacon API다.
+
+```ts
+const blob = new Blob([JSON.stringify(body)], { type: "application/json" });
+navigator.sendBeacon("/api/v2/.../view", blob);
+```
+
+채택 이유:
+
+| 특성 | 설명 |
+| --- | --- |
+| **언로드 후에도 전송 보장** | 브라우저가 요청을 큐에 넣고 페이지와 **독립적으로** 끝까지 전송한다. 페이지가 죽어도 요청은 살아남는다. |
+| **비동기·논블로킹** | 즉시 반환하며 언로드를 막지 않는다. 페이지 전환 체감 속도에 영향이 없다. |
+| **응답을 안 기다림** | 트래킹은 "보냈으면 끝"이라 응답이 필요 없다. Beacon은 응답을 읽을 수 없는 대신 전송 보장에 집중한다. |
+
+> ⚠️ 한계: 페이로드 크기 제한(브라우저별 약 64KB), `POST`만 가능, 커스텀 헤더 설정 불가(`Content-Type`은 `Blob`의 `type`으로만 지정), 응답 본문 접근 불가. 조회 트래킹처럼 작고 단방향인 전송엔 딱 맞지만, 인증 헤더를 직접 실어야 하거나 응답을 봐야 하는 요청엔 부적합하다.
+
+---
+
+## 3. 왜 `beforeunload`를 쓰지 않았는가
+
+"이탈 감지"라고 하면 `beforeunload`/`unload`를 먼저 떠올리지만, 의도적으로 배제했다.
+
+- **모바일에서 신뢰할 수 없다.** iOS Safari를 비롯한 모바일 브라우저는 탭 전환·홈 버튼·앱 백그라운드 전환 시 `beforeunload`/`unload`를 **발화하지 않는 경우가 많다.** 모바일 트래픽이 핵심인 서비스에서 이탈의 상당수를 놓친다.
+- **bfcache(뒤로/앞으로 캐시)를 무력화한다.** `unload` 리스너가 등록되어 있으면 브라우저가 페이지를 bfcache에 넣지 못해, 뒤로가기 복귀 성능이 나빠진다.
+- **언로드 중 비동기 요청은 취소된다.** `beforeunload` 안에서 `fetch`를 호출해봤자 페이지가 죽으면서 함께 취소된다. 결국 `sendBeacon`이 필요하므로 `beforeunload`를 고집할 이유가 없다.
+
+대신 표준 권고대로 **`visibilitychange`(→ hidden) + `pagehide` 조합**을 쓴다.
+
+- `visibilitychange`(hidden): 탭 전환·앱 백그라운드 전환·화면 잠금까지 모바일에서 가장 신뢰도 높게 발화한다.
+- `pagehide`: 실제 페이지 언로드/내비게이션 시 발화하며 bfcache와 호환된다.
+
+두 이벤트가 중복 발화할 수 있으므로 **1회 전송 guard**로 막는다.
+
+---
+
+## 4. 구현 패턴 (React 훅)
+
+```ts
+useEffect(() => {
+  if (!membershipId || !postId) return;
+
+  // 진입 시점 기록
+  const viewStartedAt = formatLocalDatetime(new Date());
+  let hasSent = false;
+
+  const send = () => {
+    if (hasSent) return; // 중복 전송 guard
+    hasSent = true;
+
+    const body = {
+      viewStartedAt,
+      usageConfirmedAt: formatLocalDatetime(new Date()), // 이탈 시점
+      verificationMethod: "client_timer",
+    };
+    const blob = new Blob([JSON.stringify(body)], { type: "application/json" });
+    navigator.sendBeacon?.(`/api/v2/.../view`, blob);
+  };
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "hidden") send();
+  };
+
+  document.addEventListener("visibilitychange", handleVisibilityChange);
+  window.addEventListener("pagehide", send);
+
+  return () => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+    window.removeEventListener("pagehide", send);
+    // SPA 내부 이동(언마운트) 시에도 전송 보장
+    send();
+  };
+}, [membershipId, postId]);
+```
+
+### 이탈 경로별 발화 정리
+
+| 이탈 경로 | 발화하는 신호 |
+| --- | --- |
+| 탭 닫기 / 브라우저 종료 | `visibilitychange`(hidden) → `pagehide` |
+| 다른 사이트로 이동(주소창·외부 링크) | `pagehide` |
+| 탭 전환 / 앱 백그라운드 / 화면 잠금(모바일) | `visibilitychange`(hidden) |
+| **SPA 내부 라우팅(뒤로가기·링크 클릭)** | 컴포넌트 언마운트 → **cleanup의 `send()`** |
+
+SPA에서는 라우터 이동 시 실제 페이지 언로드가 일어나지 않으므로 `pagehide`/`visibilitychange`가 안 뜬다. 이때는 **`useEffect` cleanup**이 유일한 이탈 신호이므로 cleanup에서도 `send()`를 호출해야 한다. 모든 경로가 같은 `hasSent` guard를 공유해 1회만 나간다.
+
+---
+
+## 5. 함정: 네트워크 탭 Fetch 필터에 안 잡힌다
+
+분명 요청을 보냈는데 DevTools Network 탭의 **Fetch/XHR** 필터에서 아무리 찾아도 안 보인다. **버그가 아니라 분류 차이**다.
+
+브라우저는 모든 네트워크 요청에 "어떤 API가 시작했는가"를 나타내는 **타입**을 붙인다.
+
+| 시작 방법 | 타입(Type) |
+| --- | --- |
+| `fetch()` | `fetch` |
+| `XMLHttpRequest` | `xhr` |
+| **`navigator.sendBeacon()`** | **`ping`** |
+
+**Fetch/XHR** 필터는 말 그대로 `fetch` + `xhr` 타입만 매칭한다. `sendBeacon`은 `ping` 타입이라 이 필터에 **영원히 안 잡힌다.** (`<a ping>` 속성, CSP `report-uri`도 같은 `ping` 계열이다.)
+
+왜 `ping`이냐면, Beacon은 fetch/XHR의 변종이 아니라 **별개의 스펙**이고, "응답을 읽지 않고 전송만 보장하는 저수준 전송"으로 설계됐기 때문이다.
+
+### 보는 방법
+
+- 필터를 **All**로 두거나, 필터 입력창에 경로 키워드(예: `view`)로 직접 검색한다.
+- 컬럼에 **Type**을 켜두면 `ping`으로 표시되는 항목을 바로 식별할 수 있다.
+- **Preserve log(로그 보존)를 켠다.** Beacon은 정의상 "페이지가 사라지는 순간" 나가므로, 로그 보존이 꺼져 있으면 내비게이션과 동시에 네트워크 로그가 비워지며 그 기록도 함께 날아간다.
+
+---
+
+## 6. 디버깅: "서버에 도달했는가"를 환경별로 확인하기
+
+전송 여부는 클라이언트(네트워크 탭)에서 확인하고, **실제 도달 여부**는 서버에서 확인한다. 이 프로젝트는 `sendBeacon → Next.js BFF catch-all 프록시 → FastAPI 백엔드` 구조다.
+
+### 핵심 함정: 성공한 요청은 프론트 서버 로그에 안 남는다
+
+- BFF 프록시 핸들러는 **실패 시에만** `console.error`를 찍고, **성공 시엔 아무것도 로깅하지 않는다.** → `docker logs`에 안 보인다고 "안 왔다"는 뜻이 아니다.
+- **Next.js dev 서버**는 라우트 요청을 자동으로 한 줄씩 찍는다 (`POST /api/v2/.../view 200 in 45ms`).
+- **하지만 프로덕션 standalone 서버는 이 자동 access log를 찍지 않는다.** 프로덕션 빌드에서 프론트 단으로 볼 수 있는 신호는 **코드에 직접 넣은 `console.*` 출력뿐**이다. (Next.js는 `compiler.removeConsole`가 없으면 프로덕션에서도 `console`을 유지한다.)
+
+| 방법 | dev | prod(standalone) | 비고 |
+| --- | --- | --- | --- |
+| Next 서버 자동 요청 로그 | ✅ 나옴 | ❌ **안 나옴** | dev 전용. prod는 access log 미출력 |
+| 프록시 실패 `console.error` | ✅ | ✅ | 성공은 안 찍힘 → 음성 확인용 |
+| 직접 넣은 `console.log` | ✅ (핫리로드) | ✅ (**재빌드·재배포 필요**) | dev는 볼륨 마운트라 즉시 반영, prod는 이미지에 baked |
+| **FastAPI 백엔드 access log** | ✅ | ✅ | **도달 여부의 source of truth** |
+
+### 결론
+
+- **재배포 없이 prod 그대로 확인** → **FastAPI 백엔드 access log**가 유일하게 빠른 길이다. uvicorn이 요청마다 `POST /membership/.../view`를 찍는다.
+- **그냥 요청이 나가는지 눈으로 보고 싶다** → 로컬을 **dev 모드**로 띄우면 터미널에 바로 찍힌다.
+- **prod에서 프론트 단 성공 케이스까지 보고 싶다** → 프록시 핸들러에 임시 `console.log`를 넣고 **이미지를 재빌드·재배포**해야 한다 (dev처럼 핫리로드 안 됨).
+
+### 동작 확인 시 주의
+
+`sendBeacon`은 **이탈 시점에만** 발화한다. 페이지에 진입만 해서는 아무 요청도 안 나가는 게 **정상**이다. 반드시 **진입 → 이탈(뒤로가기·탭 전환·닫기)**까지 한 뒤 로그/네트워크 탭을 확인한다.
+
+---
+
+## 7. 한 줄 요약
+
+- 언로드 순간의 전송 보장이 필요 → **`sendBeacon`** (`fetch`는 취소됨).
+- `beforeunload`는 모바일 미발화 + bfcache 무력화 → **`visibilitychange` + `pagehide` + SPA 언마운트 cleanup** 조합 + 1회 guard.
+- 네트워크 탭에서 안 보이는 건 버그가 아니라 **`ping` 타입**이라 Fetch/XHR 필터에 안 잡히는 것 → **All 필터 + Preserve log**.
+- 도달 여부의 진짜 확인처는 **백엔드 access log**. 프론트 prod 서버는 성공 요청을 자동 로깅하지 않는다.
